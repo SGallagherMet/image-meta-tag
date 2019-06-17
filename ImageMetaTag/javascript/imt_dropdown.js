@@ -85,10 +85,12 @@ function consolidate_json(obj, others) {
     };
 };
 
-function imt_main () {
+function imt_main (use_url=true) {
     // main function, run on load:
-    // parse the input url to see if it overides the default selection above
-    get_selection();
+    if (use_url) {
+        // parse the input url to see if it overides the default selection above
+        get_selection();
+    }
     // validate that selection:
     validate_selected_id(0);
     // use that selection:
@@ -105,7 +107,16 @@ function get_selection () {
     // if there are inputs, on the url, read them:
     if (in_url.length > 0) {
         var parms = in_url.split(url_separator);
-        parms[0]=parms[0].substring(1); // strip of beginning "?"
+        if (typeof plot_basedir !== 'undefined'){
+            // plot_basedir is a variable that can be set by a page
+            // that imports this js file from a subdirectory,
+            // in which case parms starts with a string indicating
+            // the subpage name
+            parms = parms.slice(1);
+        }
+        else{
+            parms[0]=parms[0].substring(1); // strip off beginning "?"
+        }
         // if there are the right number of & separated inputs, then use them:
         if (parms.length == n_deep + 1){
             if (url_type == "int"){
@@ -219,6 +230,12 @@ function apply_payload( payload ) {
     // set the string to use the the_image div:
     var the_file = "<p>Sorry, there is no image for that selection.</p>";
     // set the file, and break the loop:
+    if (typeof plot_basedir !== 'undefined'){
+        var plot_basepath = plot_basedir + "/";
+    }
+    else {
+        var plot_basepath = '';
+    }
     if (Array.isArray(payload)){
         // the right number of rows for a squarish box is the floor of the square root of the number of images:
         var n_imgs = payload.length;
@@ -236,11 +253,11 @@ function apply_payload( payload ) {
         the_file = "<p><table cellspacing=2>";
         for (var i_img=0; i_img < n_imgs; i_img++){
             if (i_img % n_cols == 0){ the_file += "<tr>"}
-            the_file += "<td><img src=" + payload[i_img] + "></td>";
+            the_file += "<td><img src=" + plot_basepath + payload[i_img] + "></td>";
         }
         the_file += "</table></p>";
     } else {
-        the_file = "<p><img src=" + payload + "></p>";
+        the_file = "<p><img src=" + plot_basepath + payload + "></p>";
     }
     // now set the_image div:
     var _ = document.getElementById("the_image");

@@ -57,7 +57,7 @@ PAKO_SOURCE_TAR = 'https://github.com/nodeca/pako/archive/{}.tar.gz'.format(PAKO
 
 
 def write_full_page(img_dict, filepath, title, 
-                    page_filename=None, tab_s_name=None, plot_basedir=None,
+                    page_filename=None, tab_s_name=None,
                     preamble=None, postamble=None, postamble_no_imt_link=False,
                     compression=False, 
                     initial_selectors=None, show_selector_names=False,
@@ -83,8 +83,6 @@ def write_full_page(img_dict, filepath, title,
                        but can be set if tab_s_name is also used.
      * tab_s_name : used to denote the name of the page, when it is used as a frame \
                     of a larger page.
-     * plot_basedir : used when the page is included in another page to indicate the
-                      relative path to the plots.
      * preamble : html text added at the top of the <body> text, but before the ImageMetaTag \
                   section. Can be quite extensive.
      * postable : html text added after the ImageMetaTag section. A link to the ImageMetaTag \
@@ -293,14 +291,15 @@ def write_full_page(img_dict, filepath, title,
 {0}</style>
 '''
                 if write_page_components:
+                    css_file_name = os.path.splitext(file_name)[0] + '.css'
                     with open(
-                        os.path.join(file_dir, 'css_'+file_name), 'w'
+                        os.path.join(file_dir, css_file_name), 'w'
                     ) as css_file:
                         css_file.write(css.format(ind))
                         out_file.write(
                             ind + 
                             '<link rel="stylesheet" type="text/css" href="{0}">\n'.format(
-                                'css_'+file_name
+                                css_file_name
                             )
                         )
                 else:
@@ -308,7 +307,10 @@ def write_full_page(img_dict, filepath, title,
 
         # now write out the specific stuff to the html header:
         if write_page_components:
-            js_out_file = open(os.path.join(file_dir, 'scripts_'+file_name, 'w'))
+            js_file_name = os.path.splitext(file_name)[0] + '.js'
+            js_out_file = open(
+                os.path.join(file_dir, js_file_name), 'w'
+            )
             js_write_start_tags = False
         else:
             js_out_file = out_file
@@ -319,7 +321,6 @@ def write_full_page(img_dict, filepath, title,
             write_js_to_header(img_dict,
                                file_obj=js_out_file,
                                pagename=page_filename, tabname=tab_s_name,
-                               plot_basedir=plot_basedir,
                                ind=ind, write_start_tags=js_write_start_tags,
                                description=description, keywords=keywords)
         else:
@@ -330,7 +331,6 @@ def write_full_page(img_dict, filepath, title,
                                file_obj=js_out_file,
                                json_files=final_json_files, js_files=js_files,
                                pagename=page_filename, tabname=tab_s_name,
-                               plot_basedir=plot_basedir,
                                write_start_tags=js_write_start_tags,
                                selector_prefix=selector_prefix, url_separator=url_separator,
                                show_singleton_selectors=show_singleton_selectors,
@@ -340,17 +340,23 @@ def write_full_page(img_dict, filepath, title,
 
         if write_page_components:
             js_out_file.close()
-            out_file.write
-            '{}<script type="text/javascript" src="{}"></script>\n'.format(
-                ind,
-                os.path.join(file_dir, 'scripts_'+file_name)
+            for js_file in js_files:
+                out_str = (
+                    '{}<script type="text/javascript" src="{}"></script>\n'.format(ind, js_file)
+                )
+                out_file.write(out_str)
+            out_file.write(
+                '{}<script type="text/javascript" src="{}"></script>\n'.format(
+                    ind,
+                    js_file_name
+                )
             )
         else:
             # now close the script and head:
             ind = _indent_down_one(ind)
             out_file.write(ind + '</script>\n')
-            ind = _indent_down_one(ind)
-            out_file.write(ind + '</head>\n')
+        ind = _indent_down_one(ind)
+        out_file.write(ind + '</head>\n')
 
         # now start the body:
         out_file.write('{}<body>\n'.format(ind))
@@ -420,7 +426,7 @@ def write_full_page(img_dict, filepath, title,
 
 def write_js_to_header(img_dict, initial_selectors=None, optgroups=None, style=None,
                        file_obj=None, json_files=None, js_files=None,
-                       pagename=None, tabname=None, plot_basedir=None, write_start_tags=True,
+                       pagename=None, tabname=None, write_start_tags=True,
                        selector_prefix=None, show_singleton_selectors=True,
                        url_separator='|', url_type='str', only_show_rel_url=False,
                        ind=None, compression=False,
@@ -453,8 +459,6 @@ def write_js_to_header(img_dict, initial_selectors=None, optgroups=None, style=N
                  but can be set if tab_s_name is also used.
     * tabname : used to denote the name of the page, when it is used as a frame \
                 of a larger page.
-    * plot_basedir - used when the page is included in another page to indicate the
-                     relative path to the plots.
     * write_start_tags - whether to write the <script> tags at the start of the file
     * selector_prefix - prefix to use for javascript selector names (defaults to 'sel')
     * show_singleton_selectors - When set to False, selectors that have only one element are \
@@ -494,9 +498,13 @@ def write_js_to_header(img_dict, initial_selectors=None, optgroups=None, style=N
             # now write out the javascript configuration variables:
             file_obj.write(ind + '<script type="text/javascript">\n')
         ind = _indent_up_one(ind)
-        file_obj.write(ind + 'var plot_basedir = {};'.format(plot_basedir))
         # define, read in and parse the json file:
+        # plot_basedir is a variable that can be set by a page that imports
+        # this js file from a subdirectory.
         out_str = '''{0}var json_files = {1};
+{0}if (typeof plot_basedir !== 'undefined') {{
+{0}    json_files = json_files.map(x => plot_basedir + '/' + x);
+{0}}}
 {0}var zl_unpack = {2};
 {0}imt = read_parse_json_files(json_files, zl_unpack);
 '''
