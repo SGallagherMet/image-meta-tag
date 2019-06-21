@@ -267,6 +267,12 @@ function apply_payload( payload ) {
 function cache_payload( payload ){
     // given the same input as apply_payload, this simply caches the image(s) instead:
     //
+    if (typeof plot_basedir !== 'undefined'){
+    var plot_basepath = plot_basedir + "/";
+    }
+    else {
+    var plot_basepath = '';
+    }
     if (Array.isArray(payload)){
 	var img_list = payload;
     } else {
@@ -278,7 +284,7 @@ function cache_payload( payload ){
 	// just create an Image instance, with the src set, and it will be fetched
 	// in the background for when it's needed.
 	var cache_image = new Image();
-	cache_image.src = img_list[i_img];
+	cache_image.src = plot_basepath + img_list[i_img];
     };
 };
 
